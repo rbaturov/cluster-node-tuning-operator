@@ -375,13 +375,20 @@ func CalculateCPUSets(systemInfo *systemInfo, reservedCPUCount int, offlinedCPUC
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, cpuset.CPUSet{}, err
 	}
+	fmt.Println("Updated Topology Info:", updatedTopologyInfo)
+
 
 	updatedExtCPUInfo, err := updateExtendedCPUInfo(systemInfo.CpuInfo, cpuset.CPUSet{}, disableHTFlag, htEnabled)
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, cpuset.CPUSet{}, err
 	}
 
+	fmt.Println("Updated updatedExtCPUInfo:", updatedExtCPUInfo)
+
 	cpuInfo := updatedExtCPUInfo.CpuInfo
+
+	fmt.Println("Updated cpuInfo:", cpuInfo)
+
 	// Check limits are in range
 	if reservedCPUCount <= 0 || reservedCPUCount >= int(cpuInfo.TotalThreads) {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("please specify the reserved CPU count in the range [1,%d]", cpuInfo.TotalThreads-1)
@@ -400,17 +407,21 @@ func CalculateCPUSets(systemInfo *systemInfo, reservedCPUCount int, offlinedCPUC
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, cpuset.CPUSet{}, err
 	}
+	fmt.Println("reserved:", reserved)
 
 	updatedExtCPUInfo, err = updateExtendedCPUInfo(updatedExtCPUInfo, reserved, disableHTFlag, htEnabled)
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, cpuset.CPUSet{}, err
 	}
+	fmt.Println("updatedExtCPUInfo:", updatedExtCPUInfo)
+	
 	//Calculate offlined cpus
 	// note this takes into account the reserved cpus from the step above
 	offlined, err := getOfflinedCPUs(updatedExtCPUInfo, offlinedCPUCount, disableHTFlag, htEnabled, highPowerConsumptionMode)
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, cpuset.CPUSet{}, err
 	}
+	fmt.Println("offlined:", offlined)
 
 	// Calculate isolated cpus.
 	// Note that topology info could have been modified by "GetReservedCPUS" so
@@ -419,6 +430,7 @@ func CalculateCPUSets(systemInfo *systemInfo, reservedCPUCount int, offlinedCPUC
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, cpuset.CPUSet{}, err
 	}
+	fmt.Println("isolated:", isolated)
 
 	return reserved, isolated, offlined, nil
 }
