@@ -255,6 +255,63 @@ var _ = Describe("Mixedcpus", Ordered, func() {
 
 			})
 		})
+		When("Disabling mixedCpus in the performance profile", func() {
+			It("should remove workload.openshift.io/enable-shared-cpus from the corresponding node/s fields", func() {
+
+				rl := &corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("100Mi"),
+					sharedCpusResource:    resource.MustParse("1"),
+				}
+				p, err := createPod(ctx, testclient.Client, testutils.NamespaceTesting,
+					withRequests(rl),
+					withLimits(rl),
+					withRuntime(components.GetComponentName(profile.Name, components.ComponentNamePrefix)))
+				Expect(err).ToNot(HaveOccurred())
+				cmd := printMixedCPUsEnvCmd()
+				output, err := pods.ExecCommandOnPod(testclient.K8sClient, p, "", cmd)
+				Expect(err).ToNot(HaveOccurred(), "failed to execute command on pod; cmd=%q pod=%q", cmd, client.ObjectKeyFromObject(p).String())
+				isolatedAndShared := strings.Split(string(output), "\r\n")
+				shared := mustParse(isolatedAndShared[1])
+				ppShared := mustParse(string(*profile.Spec.CPU.Shared))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(shared.Equals(*ppShared)).To(BeTrue(), "OPENSHIFT_SHARED_CPUS value not equal to what configure in the performance profile."+
+					"OPENSHIFT_SHARED_CPUS=%s spec.cpu.shared=%s", shared.String(), ppShared.String())
+				testlog.Infof("shared CPU set=%q", shared.String())
+
+				By("Editing performanceProfile to have empty shared cpus and setting mixedCpus to false")
+				emptySet := mustParse("")
+				profile.Spec.CPU.Shared = cpuSetToPerformanceCPUSet(emptySet)
+				profile.Spec.WorkloadHints.MixedCpus = pointer.Bool(false)
+
+				By("applying new performanceProfile")
+				testprofiles.UpdateWithRetry(profile)
+				mcp, err := mcps.GetByProfile(profile)
+				Expect(err).ToNot(HaveOccurred())
+				By("waiting for mcp to catch up")
+				mcps.WaitForCondition(mcp, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
+				mcps.WaitForCondition(mcp, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
+				Expect(testclient.Client.Get(ctx, client.ObjectKeyFromObject(profile), profile))
+
+				ppSharedUpdated := mustParse(string(*profile.Spec.CPU.Shared))
+				Expect(ppSharedUpdated.List()).To(BeEmpty())
+
+				ppMixedCpusEnabled := *profile.Spec.WorkloadHints.MixedCpus
+				Expect(ppMixedCpusEnabled).To(BeFalse())
+
+				By("Checking the mixed cpus is not available in the corresponding nodes resources")
+				workers, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(len(workers)).ToNot(BeZero())
+
+				for _, node := range workers {
+					_, exists := node.Status.Allocatable["workload.openshift.io/enable-shared-cpus"]
+					Expect(exists).To(BeFalse(), "workload.openshift.io/enable-shared-cpus is found in the node allocatable list")
+					_, exists = node.Status.Capacity["workload.openshift.io/enable-shared-cpus"]
+					Expect(exists).To(BeFalse(), "workload.openshift.io/enable-shared-cpus is found in the node capacity list")
+				}
+			})
+		})
 	})
 })
 
