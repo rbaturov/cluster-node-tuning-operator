@@ -5,13 +5,14 @@ function join_by { local IFS="$1"; shift; echo "$*"; }
 
 function rendersync() {
   INPUT_DIRS=()
-  while (( $# > 1 )); do
+  while (( $# > 2 )); do
     INPUT_DIRS+=("${WORKDIR}/test/e2e/performanceprofile/cluster-setup/$1")
     shift
   done
   INPUT_DIRS=$(join_by , ${INPUT_DIRS[@]})
 
   OUTPUT_DIR=$1
+  OWNDER_REF=$2
 
   echo "== Rendering ${INPUT_DIRS} into ${OUTPUT_DIR}"
 
@@ -19,6 +20,7 @@ function rendersync() {
 
   cd "${WORKDIR}" || { echo "failed to change dir to ${WORKDIR}"; exit; }
   _output/cluster-node-tuning-operator render \
+  --owner-ref "${OWNDER_REF}" \
   --asset-input-dir "${INPUT_DIRS}" \
   --asset-output-dir "${ARTIFACT_DIR}"
 
