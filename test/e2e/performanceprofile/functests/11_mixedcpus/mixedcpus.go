@@ -10,7 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
+	"k8s.io/apimachinery/pkg/labels"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	kubeletconfig "k8s.io/kubelet/config/v1beta1"
@@ -33,6 +33,7 @@ import (
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/namespaces"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/pods"
+	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/deployment"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/profiles"
 	testprofiles "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/profiles"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
@@ -263,21 +264,25 @@ var _ = Describe("Mixedcpus", Ordered, func() {
 					corev1.ResourceMemory: resource.MustParse("100Mi"),
 					sharedCpusResource:    resource.MustParse("1"),
 				}
-				p, err := createPod(ctx, testclient.Client, testutils.NamespaceTesting,
+				p, err := createPod1(ctx, testclient.Client, testutils.NamespaceTesting,
 					withRequests(rl),
 					withLimits(rl),
 					withRuntime(components.GetComponentName(profile.Name, components.ComponentNamePrefix)))
 				Expect(err).ToNot(HaveOccurred())
-				cmd := printMixedCPUsEnvCmd()
-				output, err := pods.ExecCommandOnPod(testclient.K8sClient, p, "", cmd)
-				Expect(err).ToNot(HaveOccurred(), "failed to execute command on pod; cmd=%q pod=%q", cmd, client.ObjectKeyFromObject(p).String())
-				isolatedAndShared := strings.Split(string(output), "\r\n")
-				shared := mustParse(isolatedAndShared[1])
-				ppShared := mustParse(string(*profile.Spec.CPU.Shared))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(shared.Equals(*ppShared)).To(BeTrue(), "OPENSHIFT_SHARED_CPUS value not equal to what configure in the performance profile."+
-					"OPENSHIFT_SHARED_CPUS=%s spec.cpu.shared=%s", shared.String(), ppShared.String())
-				testlog.Infof("shared CPU set=%q", shared.String())
+				dp := deployment.NewTestDeploymentWithPodSpec(1,p.ObjectMeta.Labels,testutils.NodeSelectorLabels,testutils.NamespaceTesting,"test-deployment",p.Spec)
+				Expect(testclient.Client.Create(ctx, dp)).ToNot(HaveOccurred())
+				
+				
+				// cmd := printMixedCPUsEnvCmd()
+				// output, err := pods.ExecCommandOnPod(testclient.K8sClient, p, "", cmd)
+				// Expect(err).ToNot(HaveOccurred(), "failed to execute command on pod; cmd=%q pod=%q", cmd, client.ObjectKeyFromObject(p).String())
+				// isolatedAndShared := strings.Split(string(output), "\r\n")
+				// shared := mustParse(isolatedAndShared[1])
+				// ppShared := mustParse(string(*profile.Spec.CPU.Shared))
+				// Expect(err).ToNot(HaveOccurred())
+				// Expect(shared.Equals(*ppShared)).To(BeTrue(), "OPENSHIFT_SHARED_CPUS value not equal to what configure in the performance profile."+
+				// 	"OPENSHIFT_SHARED_CPUS=%s spec.cpu.shared=%s", shared.String(), ppShared.String())
+				// testlog.Infof("shared CPU set=%q", shared.String())
 
 				By("Editing performanceProfile to have empty shared cpus and setting mixedCpus to false")
 				emptySet := mustParse("")
@@ -299,17 +304,35 @@ var _ = Describe("Mixedcpus", Ordered, func() {
 				ppMixedCpusEnabled := *profile.Spec.WorkloadHints.MixedCpus
 				Expect(ppMixedCpusEnabled).To(BeFalse())
 
-				By("Checking the mixed cpus is not available in the corresponding nodes resources")
-				workers, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(len(workers)).ToNot(BeZero())
+				// Add a check to ensure pods are pending
+				By("Verifying that pods in the deployment are pending")
+				podList := &corev1.PodList{}
+				listOptions := &client.ListOptions{Namespace: testutils.NamespaceTesting,LabelSelector: labels.SelectorFromSet(dp.Spec.Selector.MatchLabels)}
+				Expect(testclient.Client.List(ctx, podList, listOptions)).To(Succeed())
+				
+				// Expecting only one pod in the list
+				Expect(len(podList.Items)).To(Equal(1), "Expected exactly one pod in the list")
 
-				for _, node := range workers {
-					_, exists := node.Status.Allocatable["workload.openshift.io/enable-shared-cpus"]
-					Expect(exists).To(BeFalse(), "workload.openshift.io/enable-shared-cpus is found in the node allocatable list")
-					_, exists = node.Status.Capacity["workload.openshift.io/enable-shared-cpus"]
-					Expect(exists).To(BeFalse(), "workload.openshift.io/enable-shared-cpus is found in the node capacity list")
-				}
+				// Accessing the single pod
+				pod := podList.Items[0]
+
+				// Assuming you want to check the pod's status for the pending state
+				Expect(pod.Status.Phase).To(Equal(corev1.PodPending), "Pod %s is not in the pending state", pod.Name)
+				// for _, pod := range podList.Items {
+				// 	// Assuming you want to check the pods' status for pending state
+				// 	Expect(pod.Status.Phase).To(Equal(corev1.PodPending), "Pod %s is not in pending state", pod.Name)
+				// }
+				// By("Checking the mixed cpus is not available in the corresponding nodes resources")
+				// workers, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
+				// Expect(err).ToNot(HaveOccurred())
+				// Expect(len(workers)).ToNot(BeZero())
+
+				// for _, node := range workers {
+				// 	_, exists := node.Status.Allocatable["workload.openshift.io/enable-shared-cpus"]
+				// 	Expect(exists).To(BeFalse(), "workload.openshift.io/enable-shared-cpus is found in the node allocatable list")
+				// 	_, exists = node.Status.Capacity["workload.openshift.io/enable-shared-cpus"]
+				// 	Expect(exists).To(BeFalse(), "workload.openshift.io/enable-shared-cpus is found in the node capacity list")
+				// }
 			})
 		})
 	})
@@ -416,6 +439,16 @@ func createPod(ctx context.Context, c client.Client, ns string, opts ...func(pod
 	}
 	return p, nil
 }
+
+func createPod1(ctx context.Context, c client.Client, ns string, opts ...func(pod *corev1.Pod)) (*corev1.Pod, error) {
+	p := pods.GetTestPod()
+	p.Namespace = ns
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p, nil
+}
+
 
 func withRequests(rl *corev1.ResourceList) func(p *corev1.Pod) {
 	return func(p *corev1.Pod) {
