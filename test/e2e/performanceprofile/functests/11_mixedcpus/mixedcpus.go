@@ -257,7 +257,7 @@ var _ = Describe("Mixedcpus", Ordered, func() {
 			})
 		})
 		When("Disabling mixedCpus in the performance profile", func() {
-			It("should remove workload.openshift.io/enable-shared-cpus from the corresponding node/s fields", func() {
+			It("should make a deployment pod that used shared cpus to be pending", func() {
 
 				rl := &corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("1"),
@@ -271,18 +271,30 @@ var _ = Describe("Mixedcpus", Ordered, func() {
 				Expect(err).ToNot(HaveOccurred())
 				dp := deployment.NewTestDeploymentWithPodSpec(1,p.ObjectMeta.Labels,testutils.NodeSelectorLabels,testutils.NamespaceTesting,"test-deployment",p.Spec)
 				Expect(testclient.Client.Create(ctx, dp)).ToNot(HaveOccurred())
-				
-				
-				// cmd := printMixedCPUsEnvCmd()
-				// output, err := pods.ExecCommandOnPod(testclient.K8sClient, p, "", cmd)
-				// Expect(err).ToNot(HaveOccurred(), "failed to execute command on pod; cmd=%q pod=%q", cmd, client.ObjectKeyFromObject(p).String())
-				// isolatedAndShared := strings.Split(string(output), "\r\n")
-				// shared := mustParse(isolatedAndShared[1])
-				// ppShared := mustParse(string(*profile.Spec.CPU.Shared))
-				// Expect(err).ToNot(HaveOccurred())
-				// Expect(shared.Equals(*ppShared)).To(BeTrue(), "OPENSHIFT_SHARED_CPUS value not equal to what configure in the performance profile."+
-				// 	"OPENSHIFT_SHARED_CPUS=%s spec.cpu.shared=%s", shared.String(), ppShared.String())
-				// testlog.Infof("shared CPU set=%q", shared.String())
+				podList := &corev1.PodList{}
+				listOptions := &client.ListOptions{Namespace: testutils.NamespaceTesting,LabelSelector: labels.SelectorFromSet(dp.Spec.Selector.MatchLabels)}
+				Eventually(func() bool {
+					isReady, err := deployment.IsDeploymentReady(ctx, testclient.Client, listOptions, podList, dp)
+					Expect(err).ToNot(HaveOccurred())
+					return isReady
+				}, time.Minute, time.Second).Should(BeTrue())
+
+				Expect(testclient.Client.List(ctx, podList, listOptions)).To(Succeed())
+				Expect(len(podList.Items)).To(Equal(1), "Expected exactly one pod in the list")
+				pod := podList.Items[0]
+				fmt.Printf("Pod %s is ready", pod.Name)
+
+				By("checking environment variable under the container")
+				cmd := printMixedCPUsEnvCmd()
+				output, err := pods.ExecCommandOnPod(testclient.K8sClient, &pod, "", cmd)
+				Expect(err).ToNot(HaveOccurred(), "failed to execute command on pod; cmd=%q pod=%q", cmd, client.ObjectKeyFromObject(p).String())
+				isolatedAndShared := strings.Split(string(output), "\r\n")
+				shared := mustParse(isolatedAndShared[1])
+				ppShared := mustParse(string(*profile.Spec.CPU.Shared))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(shared.Equals(*ppShared)).To(BeTrue(), "OPENSHIFT_SHARED_CPUS value not equal to what configure in the performance profile."+
+					"OPENSHIFT_SHARED_CPUS=%s spec.cpu.shared=%s", shared.String(), ppShared.String())
+				testlog.Infof("shared CPU set=%q", shared.String())
 
 				By("Editing performanceProfile to have empty shared cpus and setting mixedCpus to false")
 				emptySet := mustParse("")
@@ -304,35 +316,20 @@ var _ = Describe("Mixedcpus", Ordered, func() {
 				ppMixedCpusEnabled := *profile.Spec.WorkloadHints.MixedCpus
 				Expect(ppMixedCpusEnabled).To(BeFalse())
 
-				// Add a check to ensure pods are pending
 				By("Verifying that pods in the deployment are pending")
-				podList := &corev1.PodList{}
-				listOptions := &client.ListOptions{Namespace: testutils.NamespaceTesting,LabelSelector: labels.SelectorFromSet(dp.Spec.Selector.MatchLabels)}
-				Expect(testclient.Client.List(ctx, podList, listOptions)).To(Succeed())
+				// listOptions := &client.ListOptions{Namespace: testutils.NamespaceTesting,LabelSelector: labels.SelectorFromSet(dp.Spec.Selector.MatchLabels)}
 				
-				// Expecting only one pod in the list
+				podList = &corev1.PodList{}
+				Expect(testclient.Client.List(ctx, podList, listOptions)).To(Succeed())
 				Expect(len(podList.Items)).To(Equal(1), "Expected exactly one pod in the list")
-
-				// Accessing the single pod
-				pod := podList.Items[0]
-
-				// Assuming you want to check the pod's status for the pending state
+				pod = podList.Items[0]
+				
+				Eventually(func() bool {
+					isFailed, err := pods.CheckPODSchedulingFailed(testclient.Client, &pod)
+					Expect(err).ToNot(HaveOccurred())
+					return isFailed
+				}, time.Minute, time.Second).Should(BeTrue())
 				Expect(pod.Status.Phase).To(Equal(corev1.PodPending), "Pod %s is not in the pending state", pod.Name)
-				// for _, pod := range podList.Items {
-				// 	// Assuming you want to check the pods' status for pending state
-				// 	Expect(pod.Status.Phase).To(Equal(corev1.PodPending), "Pod %s is not in pending state", pod.Name)
-				// }
-				// By("Checking the mixed cpus is not available in the corresponding nodes resources")
-				// workers, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
-				// Expect(err).ToNot(HaveOccurred())
-				// Expect(len(workers)).ToNot(BeZero())
-
-				// for _, node := range workers {
-				// 	_, exists := node.Status.Allocatable["workload.openshift.io/enable-shared-cpus"]
-				// 	Expect(exists).To(BeFalse(), "workload.openshift.io/enable-shared-cpus is found in the node allocatable list")
-				// 	_, exists = node.Status.Capacity["workload.openshift.io/enable-shared-cpus"]
-				// 	Expect(exists).To(BeFalse(), "workload.openshift.io/enable-shared-cpus is found in the node capacity list")
-				// }
 			})
 		})
 	})
