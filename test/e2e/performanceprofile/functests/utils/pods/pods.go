@@ -25,6 +25,8 @@ import (
 
 	testclient "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/client"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/images"
+	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/events"
+
 )
 
 // DefaultDeletionTimeout contains the default pod deletion timeout in seconds
@@ -249,4 +251,21 @@ func resourceListToString(res corev1.ResourceList) string {
 		items = append(items, fmt.Sprintf("%s=%s", resName, resQty.String()))
 	}
 	return strings.Join(items, ", ")
+}
+
+func CheckPODSchedulingFailed(c client.Client, pod *corev1.Pod) (bool, error) {
+	events, err:= events.GetEventsForObject(c, pod.Namespace, pod.Name, string(pod.UID))
+	if err != nil {
+		return false, err
+	}
+	if len(events.Items) == 0 {
+		return false, fmt.Errorf("no event received for %s/%s", pod.Namespace, pod.Name)
+	}
+
+	for _, item := range events.Items {
+		if item.Reason == "FailedScheduling" {
+			return true, nil
+		}
+	}
+	return false, nil
 }
