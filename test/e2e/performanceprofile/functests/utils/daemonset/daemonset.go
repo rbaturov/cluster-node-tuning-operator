@@ -7,7 +7,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	testlog "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/log"
@@ -45,4 +44,28 @@ func IsRunning(cli client.Client, namespace, name string) (bool, error) {
 	}
 	testlog.Infof("daemonset %q %q desired %d scheduled %d ready %d", namespace, name, ds.Status.DesiredNumberScheduled, ds.Status.CurrentNumberScheduled, ds.Status.NumberReady)
 	return (ds.Status.DesiredNumberScheduled > 0 && ds.Status.DesiredNumberScheduled == ds.Status.NumberReady), nil
+}
+
+func WaitForDeletion(cli client.Client, namespace, name string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		_, err := GetByName(cli, namespace, name)
+		if err != nil && k8serrors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, nil
+	})
+}
+
+func Delete(cli client.Client, namespace, name string) error {
+	daemonset, err := GetByName(cli, namespace, name)
+	if err != nil {
+		return err
+	}
+	if err = cli.Delete(context.TODO(), daemonset); err != nil {
+		return err
+	}
+	if err = WaitForDeletion(cli, namespace, name, 5*time.Minute); err != nil {
+		return err
+	}
+	return nil
 }
