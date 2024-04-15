@@ -24,6 +24,7 @@ import (
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/cluster"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/discovery"
 	testlog "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/log"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/pods"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/profiles"
@@ -334,7 +335,7 @@ func getReservedCPUSize(CPU *performancev2.CPU) int {
 func getVendorID(ctx context.Context, node corev1.Node, device string) string {
 	cmd := []string{"bash", "-c",
 		fmt.Sprintf("cat /sys/class/net/%s/device/vendor", device)}
-	stdout, err := nodes.ExecCommandOnNode(ctx, cmd, &node)
+	stdout, err := nodeInspector.ExecCommandOnNode(ctx, cmd, &node)
 	Expect(err).ToNot(HaveOccurred())
 	return stdout
 }
@@ -342,7 +343,7 @@ func getVendorID(ctx context.Context, node corev1.Node, device string) string {
 func getDeviceID(ctx context.Context, node corev1.Node, device string) string {
 	cmd := []string{"bash", "-c",
 		fmt.Sprintf("cat /sys/class/net/%s/device/device", device)}
-	stdout, err := nodes.ExecCommandOnNode(ctx, cmd, &node)
+	stdout, err := nodeInspector.ExecCommandOnNode(ctx, cmd, &node)
 	Expect(err).ToNot(HaveOccurred())
 	return stdout
 }

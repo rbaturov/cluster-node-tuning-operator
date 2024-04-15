@@ -19,6 +19,7 @@ import (
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/events"
 	testlog "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/log"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/mcps"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/pods"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/profiles"
@@ -813,7 +814,7 @@ func GetMemoryNodes(ctx context.Context, testPod *corev1.Pod, targetNode *corev1
 	}
 	pid, err := nodes.ContainerPid(context.TODO(), targetNode, containerID)
 	cmd := []string{"cat", fmt.Sprintf("/rootfs/proc/%s/cgroup", pid)}
-	out, err := nodes.ExecCommandOnMachineConfigDaemon(context.TODO(), targetNode, cmd)
+	out, err := nodeInspector.ExecCommandOnDaemon(context.TODO(), targetNode, cmd)
 	containerCgroup, err = cgroup.PidParser(out)
 	fmt.Println("Container Cgroup = ", containerCgroup)
 	cgroupv2, err := cgroup.IsVersion2(context.TODO(), testclient.Client)
@@ -828,7 +829,7 @@ func GetMemoryNodes(ctx context.Context, testPod *corev1.Pod, targetNode *corev1
 		cpusetMemsPath = filepath.Join(fullPath, "cpuset.mems")
 	}
 	cmd = []string{"cat", cpusetMemsPath}
-	memoryNodes, err = nodes.ExecCommandOnNode(ctx, cmd, targetNode)
+	memoryNodes, err = nodeInspector.ExecCommandOnNode(ctx, cmd, targetNode)
 	testlog.Infof("test pod %s with container id %s has Memory nodes %s", testPod.Name, containerID, memoryNodes)
 	return memoryNodes, err
 }

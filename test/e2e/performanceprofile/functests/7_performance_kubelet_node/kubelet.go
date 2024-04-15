@@ -25,6 +25,7 @@ import (
 	testutils "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils"
 	testclient "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/client"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/mcps"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/profiles"
 )
@@ -81,7 +82,7 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", Ord
 			}
 			kubeletArguments := []string{"/bin/bash", "-c", "ps -ef | grep kubelet | grep config"}
 			for _, node := range workerRTNodes {
-				stdout, err := nodes.ExecCommandOnNode(context.TODO(), kubeletArguments, &node)
+				stdout, err := nodeInspector.ExecCommandOnNode(context.TODO(), kubeletArguments, &node)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(strings.Contains(stdout, "300Mi")).To(BeTrue())
 			}
@@ -215,7 +216,7 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", Ord
 				Expect(kubeletConfig.ImageMinimumGCAge.Seconds()).ToNot(Equal(180))
 			}
 			for _, node := range workerRTNodes {
-				stdout, err := nodes.ExecCommandOnNode(context.TODO(), kubeletArguments, &node)
+				stdout, err := nodeInspector.ExecCommandOnNode(context.TODO(), kubeletArguments, &node)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(strings.Contains(stdout, "300Mi")).To(BeTrue())
 			}

@@ -21,6 +21,7 @@ import (
 	"github.com/openshift/cluster-node-tuning-operator/pkg/performanceprofile/controller/performanceprofile/components"
 	testutils "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils"
 	testclient "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/client"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
 )
 
@@ -47,7 +48,7 @@ func GetPod(ctx context.Context, node *corev1.Node) (*corev1.Pod, error) {
 func WaitForStalldTo(ctx context.Context, run bool, interval, timeout time.Duration, node *corev1.Node) error {
 	return wait.PollUntilContextTimeout(ctx, interval, timeout, true, func(ctx context.Context) (bool, error) {
 		cmd := []string{"/bin/bash", "-c", "pidof stalld || echo \"stalld not running\""}
-		stalldPid, err := nodes.ExecCommandOnNode(ctx, cmd, node)
+		stalldPid, err := nodeInspector.ExecCommandOnNode(ctx, cmd, node)
 		if err != nil {
 			klog.Errorf("failed to execute command %q on node: %q; %v", cmd, node.Name, err)
 			return false, err
@@ -70,7 +71,7 @@ func WaitForStalldTo(ctx context.Context, run bool, interval, timeout time.Durat
 func CheckParameters(ctx context.Context, node *corev1.Node, sysctlMap map[string]string, kernelParameters []string, stalld, rtkernel bool) {
 	cmd := []string{"/bin/bash", "-c", "pidof stalld || echo \"stalld not running\""}
 	By(fmt.Sprintf("Executing %q", cmd))
-	stalldPid, err := nodes.ExecCommandOnNode(ctx, cmd, node)
+	stalldPid, err := nodeInspector.ExecCommandOnNode(ctx, cmd, node)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "failed to execute command %q on node: %q; %v", cmd, node.Name, err)
 
 	_, err = strconv.Atoi(stalldPid)
@@ -102,14 +103,14 @@ func CheckParameters(ctx context.Context, node *corev1.Node, sysctlMap map[strin
 	for param, expected := range sysctlMap {
 		cmd = []string{"sysctl", "-n", param}
 		By(fmt.Sprintf("Executing %q", cmd))
-		out, err := nodes.ExecCommandOnNode(ctx, cmd, node)
+		out, err := nodeInspector.ExecCommandOnNode(ctx, cmd, node)
 		ExpectWithOffset(1, err).ToNot(HaveOccurred(), "failed to execute command %q on node: %q", cmd, node.Name)
 		ExpectWithOffset(1, out).Should(Equal(expected), "parameter %s value is not %s", param, expected)
 	}
 
 	cmd = []string{"cat", "/proc/cmdline"}
 	By(fmt.Sprintf("Executing %q", cmd))
-	cmdline, err := nodes.ExecCommandOnNode(ctx, cmd, node)
+	cmdline, err := nodeInspector.ExecCommandOnNode(ctx, cmd, node)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "failed to execute command %q on node: %q", cmd, node.Name)
 
 	for _, param := range kernelParameters {
@@ -119,7 +120,7 @@ func CheckParameters(ctx context.Context, node *corev1.Node, sysctlMap map[strin
 	if !rtkernel {
 		cmd = []string{"uname", "-a"}
 		By(fmt.Sprintf("Executing %q", cmd))
-		kernel, err := nodes.ExecCommandOnNode(ctx, cmd, node)
+		kernel, err := nodeInspector.ExecCommandOnNode(ctx, cmd, node)
 		ExpectWithOffset(1, err).ToNot(HaveOccurred(), "failed to execute command %q on node: %q", cmd, node.Name)
 		ExpectWithOffset(1, kernel).To(ContainSubstring("Linux"), "kernel should be Linux")
 

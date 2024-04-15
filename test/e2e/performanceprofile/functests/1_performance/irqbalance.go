@@ -29,6 +29,7 @@ import (
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/discovery"
 	testlog "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/log"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/mcps"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/pods"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/profiles"
@@ -313,7 +314,7 @@ var _ = Describe("[performance] Checking IRQBalance settings", Ordered, func() {
 			origBannedCPUsFile := "/etc/sysconfig/orig_irq_banned_cpus"
 			By(fmt.Sprintf("Checking content of %q on node %q", origBannedCPUsFile, node.Name))
 			fullPath := filepath.Join("/", "rootfs", origBannedCPUsFile)
-			out, err := nodes.ExecCommandOnNode(context.TODO(), []string{"/usr/bin/cat", fullPath}, node)
+			out, err := nodeInspector.ExecCommandOnNode(context.TODO(), []string{"/usr/bin/cat", fullPath}, node)
 			Expect(err).ToNot(HaveOccurred())
 			out = strings.TrimSuffix(out, "\r\n")
 			Expect(out).To(Equal("0"), "file %s does not contain the expect output; expected=0 actual=%s", fullPath, out)
@@ -327,7 +328,7 @@ var _ = Describe("[performance] Checking IRQBalance settings", Ordered, func() {
 // require close attention. For the time being we reimplement a form of nodes.BannedCPUs which can handle empty ban list.
 func getIrqBalanceBannedCPUs(ctx context.Context, node *corev1.Node) (cpuset.CPUSet, error) {
 	cmd := []string{"cat", "/rootfs/etc/sysconfig/irqbalance"}
-	conf, err := nodes.ExecCommandOnNode(ctx, cmd, node)
+	conf, err := nodeInspector.ExecCommandOnNode(ctx, cmd, node)
 	if err != nil {
 		return cpuset.New(), err
 	}
@@ -361,7 +362,7 @@ func getIrqBalanceBannedCPUs(ctx context.Context, node *corev1.Node) (cpuset.CPU
 
 func getIrqDefaultSMPAffinity(ctx context.Context, node *corev1.Node) (string, error) {
 	cmd := []string{"cat", "/rootfs/proc/irq/default_smp_affinity"}
-	return nodes.ExecCommandOnNode(ctx, cmd, node)
+	return nodeInspector.ExecCommandOnNode(ctx, cmd, node)
 }
 
 func findIrqBalanceBannedCPUsVarFromConf(conf string) string {

@@ -6,10 +6,9 @@ import (
 	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 )
 
 const (
@@ -32,7 +31,7 @@ func GetContainerRuntimeTypeFor(ctx context.Context, c client.Client, pod *corev
 		"-c",
 		fmt.Sprintf("/bin/awk -F '\"'  '/runtime_path.*/ { print $2 }' %s", CRIORuntimeConfigFile),
 	}
-	out, err := nodes.ExecCommandOnNode(ctx, cmd, node)
+	out, err := nodeInspector.ExecCommandOnNode(ctx, cmd, node)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute command on node; cmd=%q node=%q err=%v", cmd, node.Name, err)
 	}

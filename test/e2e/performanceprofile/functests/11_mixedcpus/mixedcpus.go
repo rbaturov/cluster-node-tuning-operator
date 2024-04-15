@@ -35,6 +35,7 @@ import (
 	testlog "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/log"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/mcps"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/namespaces"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/pods"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/profiles"
@@ -80,7 +81,7 @@ var _ = Describe("Mixedcpus", Ordered, func() {
 			// test arbitrary one should be good enough
 			worker := &workers[0]
 			cmd := isFileExistCmd(kubeletMixedCPUsConfigFile)
-			found, err := nodes.ExecCommandOnNode(ctx, cmd, worker)
+			found, err := nodeInspector.ExecCommandOnNode(ctx, cmd, worker)
 			Expect(err).ToNot(HaveOccurred(), "failed to execute command on node; cmd=%q node=%q", cmd, worker)
 			Expect(found).To(Equal("true"), "file not found; file=%q", kubeletMixedCPUsConfigFile)
 		})
@@ -111,7 +112,7 @@ var _ = Describe("Mixedcpus", Ordered, func() {
 				"-c",
 				fmt.Sprintf("/bin/awk  -F '\"' '/shared_cpuset.*/ { print $2 }' %s", runtime.CRIORuntimeConfigFile),
 			}
-			cpus, err := nodes.ExecCommandOnNode(ctx, cmd, worker)
+			cpus, err := nodeInspector.ExecCommandOnNode(ctx, cmd, worker)
 			Expect(err).ToNot(HaveOccurred(), "failed to execute command on node; cmd=%q node=%q", cmd, worker)
 			cpus = strings.Trim(cpus, "\n")
 			crioShared := mustParse(cpus)
@@ -235,7 +236,7 @@ var _ = Describe("Mixedcpus", Ordered, func() {
 
 				cmd := kubeletRestartCmd()
 				// The command would fail since it aborts all the pods during restart
-				_, _ = nodes.ExecCommandOnNode(ctx, cmd, node)
+				_, _ = nodeInspector.ExecCommandOnNode(ctx, cmd, node)
 				// check that the node is ready after we restart Kubelet
 				nodes.WaitForReadyOrFail("post restart", node.Name, 20*time.Minute, 3*time.Second)
 

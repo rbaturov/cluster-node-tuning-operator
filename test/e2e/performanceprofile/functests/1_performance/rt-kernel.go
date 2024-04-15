@@ -10,6 +10,7 @@ import (
 	performancev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	testutils "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/discovery"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
 )
 
@@ -65,7 +66,7 @@ var _ = Describe("[performance]RT Kernel", Ordered, func() {
 		}
 
 		cmd := []string{"uname", "-a"}
-		kernel, err := nodes.ExecCommandOnNode(context.TODO(), cmd, &nonPerformancesWorkers[0])
+		kernel, err := nodeInspector.ExecCommandOnNode(context.TODO(), cmd, &nonPerformancesWorkers[0])
 		Expect(err).ToNot(HaveOccurred(), "failed to execute uname")
 		Expect(kernel).To(ContainSubstring("Linux"), "Node should have Linux string")
 

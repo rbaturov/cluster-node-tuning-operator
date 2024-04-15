@@ -2,6 +2,8 @@ package node_inspector
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -9,10 +11,16 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	testutils "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils"
+	testclient "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/client"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/daemonset"
+	testlog "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/log"
+	testpods "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/pods"
 )
 
 const serviceAccountSuffix = "sa"
@@ -66,8 +74,53 @@ func Delete(cli client.Client, namespace, name string) error {
 	return nil
 }
 
-func IsRunning(cli client.Client, namespace, name string) (bool,error){
+func isRunning(cli client.Client, namespace, name string) (bool, error) {
 	return daemonset.IsRunning(cli, namespace, name)
+}
+
+// getDaemonPodByNode returns the daemon pod that runs on the specified node
+func getDaemonPodByNode(node *corev1.Node) (*corev1.Pod, error) {
+	listOptions := &client.ListOptions{
+		Namespace:     testutils.NodeInspectorNamespace,
+		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}),
+		LabelSelector: labels.SelectorFromSet(labels.Set{"name": testutils.NodeInspectorName}),
+	}
+
+	pods := &corev1.PodList{}
+	if err := testclient.DataPlaneClient.List(context.TODO(), pods, listOptions); err != nil {
+		return nil, err
+	}
+	if len(pods.Items) < 1 {
+		return nil, fmt.Errorf("failed to get daemon pod for the node %q", node.Name)
+	}
+	return &pods.Items[0], nil
+}
+
+// ExecCommandOnDaemon returns the output of the command execution on the node inspector daemon pod that runs on the specified node
+func ExecCommandOnDaemon(ctx context.Context, node *corev1.Node, command []string) ([]byte, error) {
+	// Ensure the node inspector is running as we are counting on it
+	ok, err := isRunning(testclient.DataPlaneClient, testutils.NodeInspectorNamespace, testutils.NodeInspectorName)
+	if err != nil || !ok {
+		return nil, err
+	}
+	pod, err := getDaemonPodByNode(node)
+	if err != nil {
+		return nil, err
+	}
+	testlog.Infof("found daemon pod %s for node %s", pod.Name, node.Name)
+
+	return testpods.WaitForPodOutput(ctx, testclient.K8sClient, pod, command)
+}
+
+// ExecCommandOnNode executes given command on given node and returns the result
+func ExecCommandOnNode(ctx context.Context, cmd []string, node *corev1.Node) (string, error) {
+	out, err := ExecCommandOnDaemon(ctx, node, cmd)
+	if err != nil {
+		return "", err
+	}
+
+	trimmedString := strings.Trim(string(out), "\n")
+	return strings.ReplaceAll(trimmedString, "\r", ""), nil
 }
 
 func createDaemonSet(name, namespace, serviceAccountName, image string) *appsv1.DaemonSet {

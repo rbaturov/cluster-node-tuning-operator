@@ -6,7 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 )
 
 // IsVM checks if a given node's underlying infrastructure is a VM
@@ -16,7 +16,7 @@ func IsVM(node *corev1.Node) (bool, error) {
 		"-c",
 		"systemd-detect-virt > /dev/null ; echo $?",
 	}
-	output, err := nodes.ExecCommandOnMachineConfigDaemon(context.TODO(), node, cmd)
+	output, err := nodeInspector.ExecCommandOnDaemon(context.TODO(), node, cmd)
 	if err != nil {
 		return false, err
 	}

@@ -25,6 +25,7 @@ import (
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/cluster"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/discovery"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/images"
+	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/nodes"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/pods"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/profiles"
@@ -189,7 +190,7 @@ var _ = Describe("[performance]Hugepages", Ordered, func() {
 
 func checkHugepagesStatus(ctx context.Context, path string, workerRTNode *corev1.Node) int {
 	command := []string{"cat", path}
-	out, err := nodes.ExecCommandOnMachineConfigDaemon(ctx, workerRTNode, command)
+	out, err := nodeInspector.ExecCommandOnDaemon(ctx, workerRTNode, command)
 	Expect(err).ToNot(HaveOccurred())
 	n, err := strconv.Atoi(strings.Trim(string(out), "\n\r"))
 	Expect(err).ToNot(HaveOccurred())
