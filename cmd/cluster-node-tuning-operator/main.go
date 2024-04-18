@@ -67,7 +67,9 @@ func init() {
 
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(tunedv1.AddToScheme(scheme))
-	utilruntime.Must(mcov1.AddToScheme(scheme))
+	if !config.InHyperShift() {
+		utilruntime.Must(mcov1.AddToScheme(scheme))
+	}
 	utilruntime.Must(apiconfigv1.Install(scheme))
 	utilruntime.Must(performancev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(performancev1.AddToScheme(scheme))
