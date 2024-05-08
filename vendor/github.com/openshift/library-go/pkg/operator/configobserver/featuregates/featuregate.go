@@ -2,7 +2,6 @@ package featuregates
 
 import (
 	"fmt"
-
 	configv1 "github.com/openshift/api/config/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -40,9 +39,9 @@ func (f *featureGate) Enabled(key configv1.FeatureGateName) bool {
 }
 
 func (f *featureGate) KnownFeatures() []configv1.FeatureGateName {
-	allKnown := sets.New[string]()
+	allKnown := sets.NewString()
 	allKnown.Insert(FeatureGateNamesToStrings(f.enabled.UnsortedList())...)
 	allKnown.Insert(FeatureGateNamesToStrings(f.disabled.UnsortedList())...)
 
-	return StringsToFeatureGateNames(sets.List(allKnown))
+	return StringsToFeatureGateNames(allKnown.List())
 }

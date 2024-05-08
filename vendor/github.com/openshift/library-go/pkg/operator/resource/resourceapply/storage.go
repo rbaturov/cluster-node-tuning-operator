@@ -61,9 +61,9 @@ func ApplyStorageClass(ctx context.Context, client storageclientv1.StorageClasse
 	}
 
 	// First, let's compare ObjectMeta from both objects
-	modified := false
+	modified := resourcemerge.BoolPtr(false)
 	existingCopy := existing.DeepCopy()
-	resourcemerge.EnsureObjectMeta(&modified, &existingCopy.ObjectMeta, required.ObjectMeta)
+	resourcemerge.EnsureObjectMeta(modified, &existingCopy.ObjectMeta, required.ObjectMeta)
 
 	// Second, let's compare the other fields. StorageClass doesn't have a spec and we don't
 	// want to miss fields, so we have to copy required to get all fields
@@ -73,7 +73,7 @@ func ApplyStorageClass(ctx context.Context, client storageclientv1.StorageClasse
 	requiredCopy.TypeMeta = existingCopy.TypeMeta
 
 	contentSame := equality.Semantic.DeepEqual(existingCopy, requiredCopy)
-	if contentSame && !modified {
+	if contentSame && !*modified {
 		return existing, false, nil
 	}
 
@@ -169,14 +169,14 @@ func ApplyCSIDriver(ctx context.Context, client storageclientv1.CSIDriversGetter
 		}
 	}
 
-	metadataModified := false
+	metadataModified := resourcemerge.BoolPtr(false)
 	existingCopy := existing.DeepCopy()
-	resourcemerge.EnsureObjectMeta(&metadataModified, &existingCopy.ObjectMeta, required.ObjectMeta)
+	resourcemerge.EnsureObjectMeta(metadataModified, &existingCopy.ObjectMeta, required.ObjectMeta)
 
 	requiredSpecHash := required.Annotations[specHashAnnotation]
 	existingSpecHash := existing.Annotations[specHashAnnotation]
 	sameSpec := requiredSpecHash == existingSpecHash
-	if sameSpec && !metadataModified {
+	if sameSpec && !*metadataModified {
 		return existing, false, nil
 	}
 

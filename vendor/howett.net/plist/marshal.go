@@ -31,19 +31,14 @@ var (
 )
 
 func implementsInterface(val reflect.Value, interfaceType reflect.Type) (interface{}, bool) {
-	if val.CanInterface() {
-		itf := val.Interface()
-		if itf != nil && reflect.TypeOf(itf).Implements(interfaceType) {
-			return itf, true
-		}
+	if val.CanInterface() && val.Type().Implements(interfaceType) {
+		return val.Interface(), true
 	}
 
 	if val.CanAddr() {
-		if pv := val.Addr(); pv.CanInterface() {
-			itf := pv.Interface()
-			if itf != nil && reflect.TypeOf(itf).Implements(interfaceType) {
-				return itf, true
-			}
+		pv := val.Addr()
+		if pv.CanInterface() && pv.Type().Implements(interfaceType) {
+			return pv.Interface(), true
 		}
 	}
 	return nil, false
@@ -152,8 +147,7 @@ func (p *Encoder) marshal(val reflect.Value) cfValue {
 	case reflect.Slice, reflect.Array:
 		if typ.Elem().Kind() == reflect.Uint8 {
 			bytes := []byte(nil)
-			if val.CanAddr() && val.Kind() == reflect.Slice {
-				// arrays are may be addressable but do not support .Bytes
+			if val.CanAddr() {
 				bytes = val.Bytes()
 			} else {
 				bytes = make([]byte, val.Len())
