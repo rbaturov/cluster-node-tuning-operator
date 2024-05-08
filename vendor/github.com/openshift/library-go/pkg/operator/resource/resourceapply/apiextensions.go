@@ -26,10 +26,10 @@ func ApplyCustomResourceDefinitionV1(ctx context.Context, client apiextclientv1.
 		return nil, false, err
 	}
 
-	modified := false
+	modified := resourcemerge.BoolPtr(false)
 	existingCopy := existing.DeepCopy()
-	resourcemerge.EnsureCustomResourceDefinitionV1(&modified, existingCopy, *required)
-	if !modified {
+	resourcemerge.EnsureCustomResourceDefinitionV1(modified, existingCopy, *required)
+	if !*modified {
 		return existing, false, nil
 	}
 

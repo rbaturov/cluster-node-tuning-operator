@@ -187,9 +187,6 @@ type wsStreamCreator struct {
 	// map of stream id to stream; multiple streams read/write the connection
 	streams   map[byte]*stream
 	streamsMu sync.Mutex
-	// setStreamErr holds the error to return to anyone calling setStreams.
-	// this is populated in closeAllStreamReaders
-	setStreamErr error
 }
 
 func newWSStreamCreator(conn *gwebsocket.Conn) *wsStreamCreator {
@@ -205,14 +202,10 @@ func (c *wsStreamCreator) getStream(id byte) *stream {
 	return c.streams[id]
 }
 
-func (c *wsStreamCreator) setStream(id byte, s *stream) error {
+func (c *wsStreamCreator) setStream(id byte, s *stream) {
 	c.streamsMu.Lock()
 	defer c.streamsMu.Unlock()
-	if c.setStreamErr != nil {
-		return c.setStreamErr
-	}
 	c.streams[id] = s
-	return nil
 }
 
 // CreateStream uses id from passed headers to create a stream over "c.conn" connection.
@@ -235,11 +228,7 @@ func (c *wsStreamCreator) CreateStream(headers http.Header) (httpstream.Stream, 
 		connWriteLock: &c.connWriteLock,
 		id:            id,
 	}
-	if err := c.setStream(id, s); err != nil {
-		_ = s.writePipe.Close()
-		_ = s.readPipe.Close()
-		return nil, err
-	}
+	c.setStream(id, s)
 	return s, nil
 }
 
@@ -323,19 +312,13 @@ func (c *wsStreamCreator) readDemuxLoop(bufferSize int, period time.Duration, de
 }
 
 // closeAllStreamReaders closes readers in all streams.
-// This unblocks all stream.Read() calls, and keeps any future streams from being created.
+// This unblocks all stream.Read() calls.
 func (c *wsStreamCreator) closeAllStreamReaders(err error) {
 	c.streamsMu.Lock()
 	defer c.streamsMu.Unlock()
 	for _, s := range c.streams {
 		// Closing writePipe unblocks all readPipe.Read() callers and prevents any future writes.
 		_ = s.writePipe.CloseWithError(err)
-	}
-	// ensure callers to setStreams receive an error after this point
-	if err != nil {
-		c.setStreamErr = err
-	} else {
-		c.setStreamErr = fmt.Errorf("closed all streams")
 	}
 }
 
