@@ -3,6 +3,7 @@ package certs
 import (
 	"bytes"
 	"encoding/pem"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -15,7 +16,7 @@ const (
 )
 
 func BlockFromFile(path string, blockType string) (*pem.Block, bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, false, err
 	}
@@ -44,7 +45,7 @@ func BlockToFile(path string, block *pem.Block, mode os.FileMode) error {
 	if err := os.MkdirAll(filepath.Dir(path), os.FileMode(0755)); err != nil {
 		return err
 	}
-	return os.WriteFile(path, b, mode)
+	return ioutil.WriteFile(path, b, mode)
 }
 
 func BlockToBytes(block *pem.Block) ([]byte, error) {

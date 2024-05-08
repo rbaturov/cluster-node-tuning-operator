@@ -30,20 +30,22 @@ import (
 
 // See https://github.com/grpc/grpc-go/blob/v1.35.0/grpclog/loggerv2.go#L77-L86
 const (
-	grpcLvlInfo int = iota
-	grpcLvlWarn
-	grpcLvlError
-	grpcLvlFatal
+	grpcLvlInfo  = 0
+	grpcLvlWarn  = 1
+	grpcLvlError = 2
+	grpcLvlFatal = 3
 )
 
-// _grpcToZapLevel maps gRPC log levels to zap log levels.
-// See https://pkg.go.dev/go.uber.org/zap@v1.16.0/zapcore#Level
-var _grpcToZapLevel = map[int]zapcore.Level{
-	grpcLvlInfo:  zapcore.InfoLevel,
-	grpcLvlWarn:  zapcore.WarnLevel,
-	grpcLvlError: zapcore.ErrorLevel,
-	grpcLvlFatal: zapcore.FatalLevel,
-}
+var (
+	// _grpcToZapLevel maps gRPC log levels to zap log levels.
+	// See https://pkg.go.dev/go.uber.org/zap@v1.16.0/zapcore#Level
+	_grpcToZapLevel = map[int]zapcore.Level{
+		grpcLvlInfo:  zapcore.InfoLevel,
+		grpcLvlWarn:  zapcore.WarnLevel,
+		grpcLvlError: zapcore.ErrorLevel,
+		grpcLvlFatal: zapcore.FatalLevel,
+	}
+)
 
 // An Option overrides a Logger's default configuration.
 type Option interface {

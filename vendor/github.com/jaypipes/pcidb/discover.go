@@ -30,7 +30,7 @@ func (db *PCIDB) load(ctx *context) error {
 		}
 	}
 	if foundPath == "" {
-		if !ctx.enableNetworkFetch {
+		if ctx.disableNetworkFetch {
 			return ERR_NO_DB
 		}
 		// OK, so we didn't find any host-local copy of the pci-ids DB file. Let's
