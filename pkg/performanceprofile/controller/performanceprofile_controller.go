@@ -451,7 +451,7 @@ func (r *PerformanceProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 		if prof, ok := instance.(*performancev2.PerformanceProfile); ok {
 			prof.Status.Conditions = status.GetProgressingConditions("DeploymentStarting", "Deployment is starting")
 		}
-		if err = r.ManagementClient.Update(ctx, instance); err != nil {
+		if err := r.ManagementClient.Update(ctx, instance); err != nil {
 			return reconcile.Result{}, err
 		}
 		klog.InfoS("Finalizer added", "instance", instanceKey.String())
