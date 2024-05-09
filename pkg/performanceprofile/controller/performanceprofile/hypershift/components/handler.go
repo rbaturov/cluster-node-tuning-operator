@@ -159,7 +159,7 @@ func (h *handler) Apply(ctx context.Context, obj client.Object, recorder record.
 	if err != nil {
 		return err
 	}
-	err = createOrUpdateKubeletConfigConfigMap(ctx, h.controlPlaneClient, cm)
+	err = createOrUpdateKubeletConfigConfigConfigMap(ctx, h.controlPlaneClient, cm)
 	if err != nil {
 		return err
 	}
@@ -215,11 +215,11 @@ func createOrUpdateMachineConfigConfigMap(ctx context.Context, cli client.Client
 	return createOrUpdateConfigMap(ctx, cli, cm, machineconfigConfigMapUpdateFunc)
 }
 
-func createOrUpdateKubeletConfigConfigMap(ctx context.Context, cli client.Client, cm *corev1.ConfigMap) error {
-	kubeletConfigConfigMapUpdateFunc := func(orig, dst *corev1.ConfigMap) {
+func createOrUpdateKubeletConfigConfigConfigMap(ctx context.Context, cli client.Client, cm *corev1.ConfigMap) error {
+	kubeletconfigConfigMapUpdateFunc := func(orig, dst *corev1.ConfigMap) {
 		dst.Data[mcoConfigMapConfigKey] = orig.Data[mcoConfigMapConfigKey]
 	}
-	return createOrUpdateConfigMap(ctx, cli, cm, kubeletConfigConfigMapUpdateFunc)
+	return createOrUpdateConfigMap(ctx, cli, cm, kubeletconfigConfigMapUpdateFunc)
 }
 
 // configMapMeta return a ConfigMap that can be used to encapsulate
