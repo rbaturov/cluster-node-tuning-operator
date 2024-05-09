@@ -93,6 +93,10 @@ func (ci *ControlPlaneClientImpl) createInConfigMap(ctx context.Context, obj cli
 	return ci.Client.Create(ctx, cm, opts...)
 }
 
+func (ci *ControlPlaneClientImpl) updateInConfigMap(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+	return ci.Client.Update(ctx, obj, opts...)
+}
+
 func EncodeManifest(obj runtime.Object, scheme *runtime.Scheme) ([]byte, error) {
 	yamlSerializer := serializer.NewSerializerWithOptions(
 		serializer.DefaultMetaFactory, scheme, scheme,
