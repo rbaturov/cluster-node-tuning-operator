@@ -28,12 +28,14 @@ import (
 )
 
 const (
-	hypershiftPerformanceProfileNameLabel = "hypershift.openshift.io/performanceProfileName"
-	hypershiftNodePoolLabel               = "hypershift.openshift.io/nodePool"
-	tunedConfigMapLabel                   = "hypershift.openshift.io/tuned-config"
-	tunedConfigMapConfigKey               = "tuning"
-	mcoConfigMapConfigKey                 = "config"
-	ntoGeneratedMachineConfigLabel        = "hypershift.openshift.io/nto-generated-machine-config"
+	hypershiftPerformanceProfileNameLabel     = "hypershift.openshift.io/performanceProfileName"
+	hypershiftNodePoolLabel                   = "hypershift.openshift.io/nodePool"
+	tunedConfigMapLabel                       = "hypershift.openshift.io/tuned-config"
+	tunedConfigMapConfigKey                   = "tuning"
+	mcoConfigMapConfigKey                     = "config"
+	ppStatusConfigMapConfigKey                = "status"
+	ntoGeneratedPerformanceProfileStatusLabel = "hypershift.openshift.io/nto-generated-performance-profile-status"
+	ntoGeneratedMachineConfigLabel            = "hypershift.openshift.io/nto-generated-machine-config"
 )
 
 var _ components.Handler = &handler{}
@@ -189,7 +191,7 @@ func (h *handler) encapsulateObjInConfigMap(instance *corev1.ConfigMap, object c
 	}
 
 	name := fmt.Sprintf("%s-%s", strings.ToLower(object.GetObjectKind().GroupVersionKind().Kind), instance.Name)
-	cm := configMapMeta(name, profileName, instance.GetNamespace(), nodePoolNamespacedName)
+	cm := ConfigMapMeta(name, profileName, instance.GetNamespace(), nodePoolNamespacedName)
 	err = controllerutil.SetControllerReference(instance, cm, h.scheme)
 	if err != nil {
 		return nil, err
@@ -205,26 +207,26 @@ func createOrUpdateTunedConfigMap(ctx context.Context, cli client.Client, cm *co
 	updateFunc := func(orig, dst *corev1.ConfigMap) {
 		dst.Data[tunedConfigMapConfigKey] = orig.Data[tunedConfigMapConfigKey]
 	}
-	return createOrUpdateConfigMap(ctx, cli, cm, updateFunc)
+	return CreateOrUpdateConfigMap(ctx, cli, cm, updateFunc)
 }
 
 func createOrUpdateMachineConfigConfigMap(ctx context.Context, cli client.Client, cm *corev1.ConfigMap) error {
 	machineconfigConfigMapUpdateFunc := func(orig, dst *corev1.ConfigMap) {
 		dst.Data[mcoConfigMapConfigKey] = orig.Data[mcoConfigMapConfigKey]
 	}
-	return createOrUpdateConfigMap(ctx, cli, cm, machineconfigConfigMapUpdateFunc)
+	return CreateOrUpdateConfigMap(ctx, cli, cm, machineconfigConfigMapUpdateFunc)
 }
 
 func createOrUpdateKubeletConfigConfigConfigMap(ctx context.Context, cli client.Client, cm *corev1.ConfigMap) error {
 	kubeletconfigConfigMapUpdateFunc := func(orig, dst *corev1.ConfigMap) {
 		dst.Data[mcoConfigMapConfigKey] = orig.Data[mcoConfigMapConfigKey]
 	}
-	return createOrUpdateConfigMap(ctx, cli, cm, kubeletconfigConfigMapUpdateFunc)
+	return CreateOrUpdateConfigMap(ctx, cli, cm, kubeletconfigConfigMapUpdateFunc)
 }
 
 // configMapMeta return a ConfigMap that can be used to encapsulate
 // cluster scoped objects within the desired Namespace
-func configMapMeta(name, profileName, namespace, npNamespacedName string) *corev1.ConfigMap {
+func ConfigMapMeta(name, profileName, namespace, npNamespacedName string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
@@ -251,7 +253,7 @@ func parseNamespacedName(namespacedName string) string {
 	return parts[0]
 }
 
-func createOrUpdateConfigMap(ctx context.Context, cli client.Client, cm *corev1.ConfigMap, updateFunc func(origin, destination *corev1.ConfigMap)) error {
+func CreateOrUpdateConfigMap(ctx context.Context, cli client.Client, cm *corev1.ConfigMap, updateFunc func(origin, destination *corev1.ConfigMap)) error {
 	tcm := &corev1.ConfigMap{}
 	err := cli.Get(ctx, client.ObjectKeyFromObject(cm), tcm)
 	if err != nil && !k8serrors.IsNotFound(err) {
