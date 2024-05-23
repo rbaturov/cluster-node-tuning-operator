@@ -34,6 +34,9 @@ func waitForCondition(ctx context.Context, c client.Client, NpName, namespace st
 		np := &hypershiftv1beta1.NodePool{}
 		key := client.ObjectKey{Name: NpName, Namespace: namespace}
 		err = c.Get(ctx, key, np)
+		if err != nil {
+			return false, err
+		}
 		for _, cond := range np.Status.Conditions {
 			return conditionFunc(cond)
 		}

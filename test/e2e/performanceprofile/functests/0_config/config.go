@@ -254,12 +254,11 @@ func attachProfileToNodePool(ctx context.Context, performanceProfile *performanc
 	Expect(err).ToNot(HaveOccurred())
 	var np *hypershiftv1beta1.NodePool
 	for i := 0; i < len(npList.Items); i++ {
-		np = &npList.Items[i]
-		if np.Spec.ClusterName == hostedClusterName {
-			break
+		if npList.Items[i].Spec.ClusterName == hostedClusterName {
+			np = &npList.Items[i]
 		}
 	}
-	Expect(np).ToNot(BeNil(), "failed to find nodePool associated with cluster %q; existing nodePools are: %v", hostedClusterName, npList.Items)
+	Expect(np).ToNot(BeNil(), "failed to find nodePool associated with cluster %q; existing nodePools are: %+v", hostedClusterName, npList.Items)
 	np.Spec.TuningConfig = []corev1.LocalObjectReference{{Name: performanceProfile.Name}}
 	Expect(testclient.ControlPlaneClient.Update(ctx, np)).To(Succeed())
 	key := client.ObjectKeyFromObject(np)
@@ -283,7 +282,7 @@ func printEnvs() {
 	testlog.Infof("%s=%s", hypershift.ManagementClusterNamespaceEnv, v)
 
 	kcPath, _ := os.LookupEnv(hypershift.ManagementClusterKubeConfigEnv)
-	testlog.Infof("%s=%s", hypershift.ManagementClusterNamespaceEnv, kcPath)
+	testlog.Infof("%s=%s", hypershift.ManagementClusterKubeConfigEnv, kcPath)
 
 	kcPath, _ = os.LookupEnv(hypershift.HostedClusterKubeConfigEnv)
 	testlog.Infof("%s=%s", hypershift.HostedClusterKubeConfigEnv, kcPath)
