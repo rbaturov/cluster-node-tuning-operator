@@ -387,8 +387,8 @@ func (r *PerformanceProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
 	}
 
-	klog.InfoS("Reconciling", "reqNamespace", req.NamespacedName)
-	defer klog.InfoS("Exit Reconciling", "reqNamespace", req.NamespacedName)
+	klog.V(4).InfoS("Reconciling", "reqNamespace", req.NamespacedName)
+	defer klog.V(4).InfoS("Exit Reconciling", "reqNamespace", req.NamespacedName)
 
 	var instance client.Object
 	instance = &performancev2.PerformanceProfile{}
