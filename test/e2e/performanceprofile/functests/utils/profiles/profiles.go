@@ -10,13 +10,17 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	performancev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
+	"github.com/openshift/cluster-node-tuning-operator/pkg/performanceprofile/controller/performanceprofile/hypershift"
 	testclient "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/client"
+	hypershiftutils "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/hypershift"
 	testlog "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/log"
 	v1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
@@ -29,12 +33,12 @@ func GetByNodeLabels(nodeLabels map[string]string) (*performancev2.PerformancePr
 	}
 
 	var result *performancev2.PerformanceProfile
-	for i := 0; i < len(profiles.Items); i++ {
-		if reflect.DeepEqual(profiles.Items[i].Spec.NodeSelector, nodeLabels) {
+	for i := 0; i < len(profiles); i++ {
+		if reflect.DeepEqual(profiles[i].Spec.NodeSelector, nodeLabels) {
 			if result != nil {
 				return nil, fmt.Errorf("found more than one performance profile with specified node selector %v", nodeLabels)
 			}
-			result = &profiles.Items[i]
+			result = &profiles[i]
 		}
 	}
 
@@ -90,10 +94,38 @@ func GetConditionWithStatus(nodeLabels map[string]string, conditionType v1.Condi
 }
 
 // All gets all the exiting profiles in the cluster
-func All() (*performancev2.PerformanceProfileList, error) {
-	profiles := &performancev2.PerformanceProfileList{}
-	if err := testclient.Client.List(context.TODO(), profiles); err != nil {
+func All() ([]performancev2.PerformanceProfile, error) {
+	if !hypershiftutils.IsHypershiftCluster() {
+		profiles := &performancev2.PerformanceProfileList{}
+		if err := testclient.ControlPlaneClient.List(context.TODO(), profiles); err != nil {
+			return nil, err
+		}
+		return profiles.Items, nil
+	}
+	// TODO: Hypershift maybe a better and more correct way to take the list of configmaps from the nodepool.spec.tuning
+	// Maybe we even want to take them from the "clusters" ns directly?
+	configMaps := corev1.ConfigMapList{}
+	labelSelector := labels.SelectorFromSet(labels.Set{"hypershift.openshift.io/performanceprofile-config": "true"})
+	listOptions := &client.ListOptions{
+		LabelSelector: labelSelector,
+	}
+	// In hypershift cluster - performance profiles are encapsulated in configmaps
+	if err := testclient.ControlPlaneClient.List(context.TODO(), &configMaps, listOptions); err != nil {
 		return nil, err
+	}
+
+	profiles := []performancev2.PerformanceProfile{}
+
+	for _, ppCM := range configMaps.Items {
+		s, ok := ppCM.Data[hypershift.TuningKey]
+		if !ok {
+			return nil, fmt.Errorf("key named %q not found in ConfigMap %q", hypershift.TuningKey, ppCM.Name)
+		}
+		profile := &performancev2.PerformanceProfile{}
+		if err := hypershift.DecodeManifest([]byte(s), scheme.Scheme, profile); err != nil {
+			return nil, err
+		}
+		profiles = append(profiles, *profile)
 	}
 	return profiles, nil
 }

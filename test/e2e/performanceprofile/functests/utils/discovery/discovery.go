@@ -33,7 +33,7 @@ func GetDiscoveryPerformanceProfile(nodesSelector string) (*performancev2.Perfor
 	if err != nil {
 		return nil, err
 	}
-	return getDiscoveryPerformanceProfile(performanceProfiles.Items, nodesSelector)
+	return getDiscoveryPerformanceProfile(performanceProfiles, nodesSelector)
 }
 
 // GetFilteredDiscoveryPerformanceProfile returns an existing profile in the cluster with the most nodes using it
@@ -44,7 +44,7 @@ func GetFilteredDiscoveryPerformanceProfile(iterator ConditionIterator) (*perfor
 	if err != nil {
 		return nil, err
 	}
-	return getDiscoveryPerformanceProfile(filter(performanceProfiles.Items, iterator), "")
+	return getDiscoveryPerformanceProfile(filter(performanceProfiles, iterator), "")
 }
 
 func getDiscoveryPerformanceProfile(performanceProfiles []performancev2.PerformanceProfile, nodesSelector string) (*performancev2.PerformanceProfile, error) {
@@ -54,7 +54,7 @@ func getDiscoveryPerformanceProfile(performanceProfiles []performancev2.Performa
 		selector := labels.SelectorFromSet(profile.Spec.NodeSelector)
 
 		profileNodes := &corev1.NodeList{}
-		if err := testclient.Client.List(context.TODO(), profileNodes, &client.ListOptions{LabelSelector: selector}); err != nil {
+		if err := testclient.DataPlaneClient.List(context.TODO(), profileNodes, &client.ListOptions{LabelSelector: selector}); err != nil {
 			return nil, err
 		}
 
