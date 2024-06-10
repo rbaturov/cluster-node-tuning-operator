@@ -660,6 +660,7 @@ var _ = Describe("[rfe_id:27368][performance]", Ordered, func() {
 	})
 
 	Context("Verify API Conversions", func() {
+		// TODO: hypershift -> might need to skip these
 		verifyV2V1 := func() {
 			By("Checking v2 -> v1 conversion")
 			v1Profile := &performancev1.PerformanceProfile{}

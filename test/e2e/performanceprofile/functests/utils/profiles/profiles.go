@@ -60,6 +60,7 @@ func WaitForDeletion(profileKey types.NamespacedName, timeout time.Duration) err
 	})
 }
 
+// TODO: hypershift -> This would need a modification on hypershift as no status going to be reported in PP.
 // GetCondition the performance profile condition for the given type
 func GetCondition(nodeLabels map[string]string, conditionType v1.ConditionType) *v1.Condition {
 	profile, err := GetByNodeLabels(nodeLabels)

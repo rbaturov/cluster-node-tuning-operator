@@ -36,6 +36,7 @@ import (
 	"github.com/openshift/cluster-node-tuning-operator/test/framework"
 )
 
+// TOOD: hypershift -> maybe we need to change this client
 var (
 	cs = framework.NewClientSet()
 )
@@ -58,7 +59,7 @@ var _ = Describe("[performance] Checking IRQBalance settings", Ordered, func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		initialProfile = profile.DeepCopy()
-
+		// TODO: hypershift -> need to remove mcp
 		performanceMCP, err = mcps.GetByProfile(profile)
 		Expect(err).ToNot(HaveOccurred())
 
