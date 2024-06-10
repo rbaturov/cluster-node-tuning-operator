@@ -72,9 +72,9 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 		onlineCPUSet, err = nodes.GetOnlineCPUsSet(ctx, workerRTNode)
 		cpuID := onlineCPUSet.UnsortedList()[0]
 		smtLevel = nodes.GetSMTLevel(ctx, cpuID, workerRTNode)
-		getter, err = cgroup.BuildGetter(ctx, testclient.Client, testclient.K8sClient)
+		getter, err = cgroup.BuildGetter(ctx, testclient.DataPlaneClient, testclient.K8sClient)
 		Expect(err).ToNot(HaveOccurred())
-		cgroupV2, err = cgroup.IsVersion2(ctx, testclient.Client)
+		cgroupV2, err = cgroup.IsVersion2(ctx, testclient.DataPlaneClient)
 		Expect(err).ToNot(HaveOccurred())
 
 	})
@@ -238,7 +238,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 
 			By(fmt.Sprintf("create a %s QoS stress pod requesting %d cpus", expectedQos, cpuRequest))
 			var err error
-			err = testclient.Client.Create(ctx, testpod)
+			err = testclient.DataPlaneClient.Create(ctx, testpod)
 			Expect(err).ToNot(HaveOccurred())
 
 			testpod, err = pods.WaitForCondition(ctx, client.ObjectKeyFromObject(testpod), corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
@@ -246,7 +246,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			updatedPod := &corev1.Pod{}
-			err = testclient.Client.Get(ctx, client.ObjectKeyFromObject(testpod), updatedPod)
+			err = testclient.DataPlaneClient.Get(ctx, client.ObjectKeyFromObject(testpod), updatedPod)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(updatedPod.Status.QOSClass).To(Equal(expectedQos),
 				"unexpected QoS Class for %s/%s: %s (looking for %s)",
@@ -280,7 +280,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 					corev1.ResourceCPU:    resource.MustParse("2"),
 				},
 			}
-			err := testclient.Client.Create(context.TODO(), testpod)
+			err := testclient.DataPlaneClient.Create(context.TODO(), testpod)
 			testpod, err = pods.WaitForCondition(context.TODO(), client.ObjectKeyFromObject(testpod), corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
 			logEventsForPod(testpod)
 			Expect(err).ToNot(HaveOccurred())
@@ -355,7 +355,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 			}
 			testpod = getTestPodWithAnnotations(annotations, smtLevel)
 
-			err = testclient.Client.Create(context.TODO(), testpod)
+			err = testclient.DataPlaneClient.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 			testpod, err = pods.WaitForCondition(context.TODO(), client.ObjectKeyFromObject(testpod), corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
 			logEventsForPod(testpod)
@@ -410,7 +410,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 			testpod.Spec.NodeSelector = map[string]string{testutils.LabelHostname: workerRTNode.Name}
 			testpod.Spec.ShareProcessNamespace = pointer.Bool(true)
 
-			err := testclient.Client.Create(context.TODO(), testpod)
+			err := testclient.DataPlaneClient.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
 			testpod, err = pods.WaitForCondition(context.TODO(), client.ObjectKeyFromObject(testpod), corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
@@ -508,7 +508,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 			testpod = promotePodToGuaranteed(getStressPod(workerRTNode.Name, cpuCount))
 			testpod.Namespace = testutils.NamespaceTesting
 
-			err := testclient.Client.Create(context.TODO(), testpod)
+			err := testclient.DataPlaneClient.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
 			currentPod, err := pods.WaitForPredicate(context.TODO(), client.ObjectKeyFromObject(testpod), 10*time.Minute, func(pod *corev1.Pod) (bool, error) {
@@ -520,7 +520,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 			Expect(err).ToNot(HaveOccurred(), "expected the pod to keep pending, but its current phase is %s", currentPod.Status.Phase)
 
 			updatedPod := &corev1.Pod{}
-			err = testclient.Client.Get(context.TODO(), client.ObjectKeyFromObject(testpod), updatedPod)
+			err = testclient.DataPlaneClient.Get(context.TODO(), client.ObjectKeyFromObject(testpod), updatedPod)
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(updatedPod.Status.Phase).To(Equal(corev1.PodFailed), "pod %s not failed: %v", updatedPod.Name, updatedPod.Status)
@@ -620,7 +620,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 			unblockerPod := pods.GetTestPod() // any non-GU pod will suffice ...
 			unblockerPod.Namespace = testutils.NamespaceTesting
 			unblockerPod.Spec.NodeSelector = map[string]string{testutils.LabelHostname: workerRTNode.Name}
-			err = testclient.Client.Create(context.TODO(), unblockerPod)
+			err = testclient.DataPlaneClient.Create(context.TODO(), unblockerPod)
 			Expect(err).ToNot(HaveOccurred())
 			allTestpods[unblockerPod.UID] = unblockerPod
 			time.Sleep(30 * time.Second) // let cpumanager reconcile loop catch up
@@ -649,22 +649,22 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", Ordered, func() {
 			testpod.Spec.RuntimeClassName = &runtimeClass
 			testpod.Spec.Containers[0].Image = busyCpusImage
 			testpod.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU] = resource.MustParse("2")
-			err = testclient.Client.Create(context.TODO(), testpod)
+			err = testclient.DataPlaneClient.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 			testpod, err = pods.WaitForCondition(ctx, client.ObjectKeyFromObject(testpod), corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
 			logEventsForPod(testpod)
 			Expect(err).ToNot(HaveOccurred(), "failed to create guaranteed pod %v", testpod)
 			allTestpods[testpod.UID] = testpod
-			err = testclient.Client.Get(ctx, client.ObjectKey{Name: testpod.Spec.NodeName}, targetNode)
+			err = testclient.DataPlaneClient.Get(ctx, client.ObjectKey{Name: testpod.Spec.NodeName}, targetNode)
 			Expect(err).ToNot(HaveOccurred(), "failed to fetch the node on which pod %v is running", testpod)
 		})
 
 		AfterAll(func() {
 			for podUID, testpod := range allTestpods {
 				testlog.Infof("deleting test pod %s/%s UID=%q", testpod.Namespace, testpod.Name, podUID)
-				err := testclient.Client.Get(ctx, client.ObjectKeyFromObject(testpod), testpod)
+				err := testclient.DataPlaneClient.Get(ctx, client.ObjectKeyFromObject(testpod), testpod)
 				Expect(err).ToNot(HaveOccurred())
-				err = testclient.Client.Delete(ctx, testpod)
+				err = testclient.DataPlaneClient.Delete(ctx, testpod)
 				Expect(err).ToNot(HaveOccurred())
 
 				err = pods.WaitForDeletion(ctx, testpod, pods.DefaultDeletionTimeout*time.Second)
@@ -838,7 +838,7 @@ func startHTtestPod(ctx context.Context, cpuCount int) *corev1.Pod {
 
 	By(fmt.Sprintf("Creating test pod with %d cpus", cpuCount))
 	testlog.Info(pods.DumpResourceRequirements(testpod))
-	err := testclient.Client.Create(ctx, testpod)
+	err := testclient.DataPlaneClient.Create(ctx, testpod)
 	Expect(err).ToNot(HaveOccurred())
 	testpod, err = pods.WaitForCondition(ctx, client.ObjectKeyFromObject(testpod), corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
 	logEventsForPod(testpod)
@@ -917,7 +917,7 @@ func getTestPodWithProfileAndAnnotations(perfProf *performancev2.PerformanceProf
 			corev1.ResourceMemory: resMem,
 		},
 	}
-
+	// TOOO: in hypershift we have this only in the status
 	if perfProf != nil {
 		runtimeClassName := components.GetComponentName(perfProf.Name, components.ComponentNamePrefix)
 		testpod.Spec.RuntimeClassName = &runtimeClassName
@@ -936,14 +936,14 @@ func getTestPodWithAnnotations(annotations map[string]string, cpus int) *corev1.
 
 func deleteTestPod(ctx context.Context, testpod *corev1.Pod) (types.UID, bool) {
 	// it possible that the pod already was deleted as part of the test, in this case we want to skip teardown
-	err := testclient.Client.Get(ctx, client.ObjectKeyFromObject(testpod), testpod)
+	err := testclient.DataPlaneClient.Get(ctx, client.ObjectKeyFromObject(testpod), testpod)
 	if errors.IsNotFound(err) {
 		return "", false
 	}
 
 	testpodUID := testpod.UID
 
-	err = testclient.Client.Delete(ctx, testpod)
+	err = testclient.DataPlaneClient.Delete(ctx, testpod)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = pods.WaitForDeletion(ctx, testpod, pods.DefaultDeletionTimeout*time.Second)
@@ -979,7 +979,7 @@ func cpuSpecToString(cpus *performancev2.CPU) (string, error) {
 }
 
 func logEventsForPod(testPod *corev1.Pod) {
-	evs, err := events.GetEventsForObject(testclient.Client, testPod.Namespace, testPod.Name, string(testPod.UID))
+	evs, err := events.GetEventsForObject(testclient.DataPlaneClient, testPod.Namespace, testPod.Name, string(testPod.UID))
 	if err != nil {
 		testlog.Error(err)
 	}
