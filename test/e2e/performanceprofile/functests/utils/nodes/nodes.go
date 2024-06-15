@@ -27,6 +27,7 @@ import (
 	testutils "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils"
 	testclient "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/client"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/cluster"
+	hypershiftutils "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/hypershift"
 	testlog "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/log"
 	nodeInspector "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/node_inspector"
 )
@@ -103,6 +104,24 @@ func GetBySelector(selector labels.Selector) ([]corev1.Node, error) {
 	nodes := &corev1.NodeList{}
 	if err := testclient.DataPlaneClient.List(context.TODO(), nodes, &client.ListOptions{LabelSelector: selector}); err != nil {
 		return nil, err
+	}
+
+	// If we can't find any node with worker-cnf label on hypershift, just label the first one.
+	if hypershiftutils.IsHypershiftCluster() && len(nodes.Items) == 0 {
+		if err := testclient.DataPlaneClient.List(context.TODO(), nodes); err != nil {
+			return nil, err
+		}
+		workerRTNode := nodes.Items[0]
+		labels := workerRTNode.GetLabels()
+		labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF)] = ""
+		workerRTNode.SetLabels(labels)
+		if err := testclient.DataPlaneClient.Update(context.TODO(), &workerRTNode); err != nil {
+			return nil, err
+		}
+		fmt.Printf("worker %s labels are:%v", workerRTNode.Name, workerRTNode.Labels)
+		nodes = &corev1.NodeList{
+			Items: []corev1.Node{workerRTNode},
+		}
 	}
 	return nodes.Items, nil
 }
