@@ -60,9 +60,9 @@ import (
 )
 
 const (
-	openshiftFinalizer               = "foreground-deletion"
-	hypershiftFinalizer              = "hypershift.openshift.io/foreground-deletion"
-	controllerGeneratedMachineConfig = "hypershift.openshift.io/performanceprofile-config"
+	openshiftFinalizer                    = "foreground-deletion"
+	hypershiftFinalizer                   = "hypershift.openshift.io/foreground-deletion"
+	ControllerGeneratedPerformanceProfile = "hypershift.openshift.io/performanceprofile-config"
 )
 
 // PerformanceProfileReconciler reconciles a PerformanceProfile object
@@ -206,9 +206,9 @@ func (r *PerformanceProfileReconciler) SetupWithManagerForHypershift(mgr ctrl.Ma
 }
 
 func validateLabels(obj client.Object, eventType string) bool {
-	_, hasLabel := obj.GetLabels()[controllerGeneratedMachineConfig]
+	_, hasLabel := obj.GetLabels()[ControllerGeneratedPerformanceProfile]
 	if hasLabel {
-		klog.V(4).InfoS("Label found", "label", controllerGeneratedMachineConfig, "eventType", eventType, "objectName", obj.GetName())
+		klog.V(4).InfoS("Label found", "label", ControllerGeneratedPerformanceProfile, "eventType", eventType, "objectName", obj.GetName())
 	}
 	return hasLabel
 }
