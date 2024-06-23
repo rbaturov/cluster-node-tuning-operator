@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,12 +15,10 @@ import (
 	machineconfigv1 "github.com/openshift/api/machineconfiguration/v1"
 	performancev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
+	hypershift "github.com/openshift/cluster-node-tuning-operator/pkg/operator"
 )
 
-// a set of keys which used to classify the encapsulated objects in the ConfigMap
 const (
-	TuningKey                   = "tuning"
-	ConfigKey                   = "config"
 	HostedClustersNamespaceName = "clusters"
 )
 
@@ -78,21 +77,21 @@ func (ci *ControlPlaneClientImpl) getFromConfigMap(ctx context.Context, key clie
 	cmKey := client.ObjectKeyFromObject(cm)
 	var objAsYAML string
 	var tuningKeyFound, configKeyFound bool
-	if s, ok := cm.Data[TuningKey]; ok {
+	if s, ok := cm.Data[hypershift.TuningConfigMapConfigKey]; ok {
 		objAsYAML = s
 		tuningKeyFound = true
 	}
-	if s, ok2 := cm.Data[ConfigKey]; ok2 {
+	if s, ok2 := cm.Data[hypershift.McConfigMapDataKey]; ok2 {
 		objAsYAML = s
 		configKeyFound = true
 	}
 	// can't have both
 	if tuningKeyFound && configKeyFound {
-		return fmt.Errorf("ConfigMap %s has both %s and %s keys", cmKey.String(), TuningKey, ConfigKey)
+		return fmt.Errorf("ConfigMap %s has both %s and %s keys", cmKey.String(), hypershift.TuningConfigMapConfigKey, hypershift.McConfigMapDataKey)
 	}
 	if !tuningKeyFound && !configKeyFound {
 		return fmt.Errorf("could not get %s from ConfigMap %s, keys %s and %s are missing",
-			obj.GetObjectKind().GroupVersionKind().Kind, cmKey.String(), TuningKey, ConfigKey)
+			obj.GetObjectKind().GroupVersionKind().Kind, cmKey.String(), hypershift.TuningConfigMapConfigKey, hypershift.McConfigMapDataKey)
 	}
 	return DecodeManifest([]byte(objAsYAML), scheme.Scheme, obj)
 }
@@ -103,7 +102,7 @@ func (ci *ControlPlaneClientImpl) createInConfigMap(ctx context.Context, obj cli
 	if err != nil {
 		return err
 	}
-	cm.Data = map[string]string{TuningKey: string(b)}
+	cm.Data = map[string]string{hypershift.TuningConfigMapConfigKey: string(b)}
 	return ci.Client.Create(ctx, cm, opts...)
 }
 
