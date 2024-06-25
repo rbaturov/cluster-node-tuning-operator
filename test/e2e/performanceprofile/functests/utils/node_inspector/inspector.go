@@ -15,17 +15,32 @@ import (
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	. "github.com/onsi/gomega"
 
 	testutils "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils"
 	testclient "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/client"
 	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/daemonset"
 	testlog "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/log"
 	testpods "github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/pods"
+	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/namespaces"
+	"github.com/openshift/cluster-node-tuning-operator/test/e2e/performanceprofile/functests/utils/images"
 )
 
 const serviceAccountSuffix = "sa"
 const clusterRoleSuffix = "cr"
 const clusterRoleBindingSuffix = "crb"
+
+func init() {
+	// create test namespace
+	err := testclient.DataPlaneClient.Create(context.TODO(), namespaces.NodeInspectorNamespace)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		Expect(err).ToNot(HaveOccurred())
+	}
+
+	// Create Node Inspector resources
+	err = Create(testclient.DataPlaneClient, testutils.NodeInspectorNamespace, testutils.NodeInspectorName, images.Test())
+	Expect(err).ToNot(HaveOccurred())
+}
 
 func Create(cli client.Client, namespace, name, image string) error {
 	serviceAccountName := fmt.Sprintf("%s-%s", name, serviceAccountSuffix)
