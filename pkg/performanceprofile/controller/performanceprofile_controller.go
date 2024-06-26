@@ -421,6 +421,8 @@ func validateUpdateEvent(e *event.UpdateEvent) bool {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *PerformanceProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	klog.Infof("Client counter BEGIN of reconciliation:\n %s", hypershift.PrintCounter())
+	defer klog.Infof("Client counter END of reconciliation:\n %s", hypershift.PrintCounter())
 	co, err := resources.GetClusterOperator(ctx, r.Client)
 	if err != nil {
 		klog.Errorf("failed to get ClusterOperator: %v", err)

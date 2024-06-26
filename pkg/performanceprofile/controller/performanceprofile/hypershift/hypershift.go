@@ -26,6 +26,14 @@ const (
 	PerformanceProfileNameLabel = "hypershift.openshift.io/performanceProfileName"
 )
 
+type counter map[string]int
+
+var cnt counter
+
+func init() {
+	cnt = map[string]int{}
+}
+
 type ControlPlaneClientImpl struct {
 	// A client with access to the management cluster
 	client.Client
@@ -37,15 +45,19 @@ type ControlPlaneClientImpl struct {
 
 func (ci *ControlPlaneClientImpl) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	if IsEncapsulatedInConfigMap(obj) {
+		cnt["GetFromConfigMap"] = cnt["GetFromConfigMap"] + 1
 		return ci.getFromConfigMap(ctx, key, obj, opts...)
 	}
+	cnt["Get"] = cnt["Get"] + 1
 	return ci.Client.Get(ctx, key, obj, opts...)
 }
 
 func (ci *ControlPlaneClientImpl) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	if IsEncapsulatedInConfigMap(obj) {
+		cnt["CreateInConfigMap"] = cnt["CreateInConfigMap"] + 1
 		return ci.createInConfigMap(ctx, obj, opts...)
 	}
+	cnt["Create"] = cnt["Create"] + 1
 	return ci.Client.Create(ctx, obj, opts...)
 }
 
@@ -138,4 +150,12 @@ func DecodeManifest(b []byte, scheme *runtime.Scheme, obj runtime.Object) error 
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	_, _, err := yamlSerializer.Decode(b, &gvk, obj)
 	return err
+}
+
+func PrintCounter() string {
+	var ss string
+	for k, v := range cnt {
+		ss = fmt.Sprintf("FunctionName=%q, Called %d times\n", k, v)
+	}
+	return ss
 }
