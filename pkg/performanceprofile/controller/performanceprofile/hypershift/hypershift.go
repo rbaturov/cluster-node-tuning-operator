@@ -48,10 +48,8 @@ func (ci *ControlPlaneClientImpl) Get(ctx context.Context, key client.ObjectKey,
 
 func (ci *ControlPlaneClientImpl) List(ctx context.Context, objList client.ObjectList, opts ...client.ListOption) error {
 	if IsEncapsulatedInConfigMap(objList) {
-		cnt["listFromConfigMaps"] = cnt["listFromConfigMaps"] + 1
 		return ci.listFromConfigMaps(ctx, objList, opts...)
 	}
-	cnt["List"] = cnt["List"] + 1
 	return ci.Client.List(ctx, objList, opts...)
 }
 
@@ -64,7 +62,6 @@ func (ci *ControlPlaneClientImpl) Create(ctx context.Context, obj client.Object,
 
 func (ci *ControlPlaneClientImpl) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 	if IsEncapsulatedInConfigMap(obj) {
-		cnt["updateConfigMap"] = cnt["updateConfigMap"] + 1
 		return ci.updateConfigMap(ctx, obj, opts...)
 	}
 	return ci.Client.Update(ctx, obj, opts...)
